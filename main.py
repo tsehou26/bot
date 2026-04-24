@@ -2,27 +2,29 @@ import discord
 from discord.ext import commands, tasks
 import logging
 from dotenv import load_dotenv
-import os
-import asyncio
 import datetime
 from datetime import time
 import pytz
 import random
-from aiohttp import web
 import asyncio
-
+import os
+from aiohttp import web
 
 async def handle(request):
     return web.Response(text="Bot is alive!")
 
-
 async def run_webserver():
     app = web.Application()
-    app.add_routes([web.get('/', handle)])
+    app.add_routes([web.get("/", handle)])
+
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
+
+    port = int(os.environ.get("PORT", 8080))  # Render provides PORT
+    site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
+
+    print(f"Webserver running on port {port}")
 
 
 load_dotenv()
@@ -34,7 +36,11 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+class BirthdayBot(commands.Bot):
+    async def setup_hook(self):
+        self.loop.create_task(run_webserver())
+
+bot = BirthdayBot(command_prefix="!", intents=intents)
 
 birthdays = {
     'Angel': {
@@ -126,13 +132,13 @@ def ordinal(n):
             return f"{n}th"
 
 
-@bot.event
+@bot.event        
 async def on_ready():
-    bot.loop.create_task(run_webserver())
-    channel = bot.get_channel(channel_id)
     message = f'{bot.user.name} has started running!'
     print(message)
-    scheduled_message_loop.start()
+
+    if not scheduled_message_loop.is_running():
+        scheduled_message_loop.start()
 
 
 @bot.command()
