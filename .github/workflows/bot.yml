@@ -3,7 +3,11 @@ name: Run Discord Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"  # restart every 10 minutes
+    - cron: "*/10 * * * *"
+
+concurrency:
+  group: birthday-bot
+  cancel-in-progress: true
 
 jobs:
   run-bot:
@@ -22,6 +26,12 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Restore birthday state
+        uses: actions/cache/restore@v4
+        with:
+          path: birthday_state.json
+          key: birthday-state
+
       - name: Run bot
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
@@ -29,3 +39,10 @@ jobs:
           TIMEZONE: America/New_York
         run: |
           python main.py
+
+      - name: Save birthday state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: birthday_state.json
+          key: birthday-state
