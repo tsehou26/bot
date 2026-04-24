@@ -148,11 +148,6 @@ async def info(ctx):
 
 
 @bot.command()
-async def testcall(ctx):
-    await ctx.send(f"生日快樂你這他媽老頭！")
-
-
-@bot.command()
 async def mentionroulette(ctx):
     random_person = random.choice(list(birthdays.values()))
     await ctx.send(f"<@{random_person['id']}>")
@@ -181,18 +176,12 @@ async def scheduled_message_loop():
             user_mention = f"<@{info['id']}>"
             age = now.year - info['year']
 
-            if name == 'Nick':
-                await channel.send(f'¡Feliz Cumpleaños {name}!')
-            elif name == 'Angel':
+            if name == 'Angel' or name == 'Nick':
                 await channel.send(f'{user_mention} ¡Feliz Cumpleaños {name}!')
             elif name == 'Rahm':
                 await channel.send(f'{user_mention} Happy {ordinal(age)} Birthday!')
             else:
                 await channel.send(f'{user_mention} Happy {ordinal(age)} Birthday {name}!')
-
-            if age >= 40:
-                await channel.send('How the fuck do we still have this discord server what the hell.')
-                await channel.send('Is China still paying for these message servers lol')
 
             greeted_today.add(name)
 
