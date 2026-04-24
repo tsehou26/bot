@@ -1,44 +1,47 @@
 import discord
 from discord.ext import commands, tasks
-import logging
 from dotenv import load_dotenv
 import datetime
 from datetime import time
 import pytz
 import random
-import asyncio
 import os
-from aiohttp import web
+import json
+from pathlib import Path
 
-async def handle(request):
-    return web.Response(text="Bot is alive!")
+STATE_FILE = Path("birthday_state.json")
 
-async def run_webserver():
-    app = web.Application()
-    app.add_routes([web.get("/", handle)])
+def load_state():
+    if STATE_FILE.exists():
+        with STATE_FILE.open("r") as f:
+            return json.load(f)
+    return {}
 
-    runner = web.AppRunner(app)
-    await runner.setup()
-
-    port = int(os.environ.get("PORT", 8080))  # Render provides PORT
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-
-    print(f"Webserver running on port {port}")
+def save_state(state):
+    with STATE_FILE.open("w") as f:
+        json.dump(state, f)
 
 
 load_dotenv()
-token = os.getenv('DISCORD_TOKEN')
-channel_id = int(os.getenv('CHANNEL_ID'))
-timezone = pytz.timezone(os.getenv('TIMEZONE'))
+
+token = os.getenv("DISCORD_TOKEN")
+channel_id_raw = os.getenv("CHANNEL_ID")
+timezone_raw = os.getenv("TIMEZONE", "America/New_York")
+
+if not token:
+    raise RuntimeError("Missing DISCORD_TOKEN")
+if not channel_id_raw:
+    raise RuntimeError("Missing CHANNEL_ID")
+
+channel_id = int(channel_id_raw)
+timezone = pytz.timezone(timezone_raw)
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 class BirthdayBot(commands.Bot):
-    async def setup_hook(self):
-        self.loop.create_task(run_webserver())
+    pass
 
 bot = BirthdayBot(command_prefix="!", intents=intents)
 
@@ -117,10 +120,12 @@ birthdays = {
     },
 }
 
-greeted_today = set()
+greeted_state = load_state()
 
 
 def ordinal(n):
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
     match n % 10:
         case 1:
             return f"{n}st"
@@ -162,17 +167,16 @@ async def mentionroulette(ctx):
 async def scheduled_message_loop():
     now = datetime.datetime.now(timezone)
     print(f'{bot.user.name} starting search process at {now}!')
-    if now.hour == 0:
-        greeted_today.clear()
 
     today = (now.month, now.day)
+    today_key = now.strftime("%Y-%m-%d")
     channel = bot.get_channel(channel_id)
     if not channel:
         print('Channel not found')
         return
 
     for name, info in birthdays.items():
-        if info['date'] == today and name not in greeted_today:
+        if info["date"] == today and greeted_state.get(name) != today_key:
             user_mention = f"<@{info['id']}>"
             age = now.year - info['year']
 
@@ -183,7 +187,8 @@ async def scheduled_message_loop():
             else:
                 await channel.send(f'{user_mention} Happy {ordinal(age)} Birthday {name}!')
 
-            greeted_today.add(name)
+            greeted_state[name] = today_key
+            save_state(greeted_state)
 
     print(f'{bot.user.name} finished searching for session {now}!')
 
