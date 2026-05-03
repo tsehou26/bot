@@ -64,12 +64,6 @@ birthdays = {
         "id": 1399037133867581491,
         "older": False
     },
-    'Eric': {
-        "date": (5, 3),
-        "year": 2002,
-        "id": 197099924947468288,
-        "older": True
-    },
     'Erik': {
         "date": (3, 12),
         "year": 2000,
